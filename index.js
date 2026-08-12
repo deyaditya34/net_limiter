@@ -1,15 +1,17 @@
-import { readFile } from "fs/promises";
+import { readFile, readdir } from "fs/promises";
 import { exec } from "child_process";
 
-const INTERFACES = ["eno1", "wlan0"];
+const INTERFACE_LIST_PATH = "/sys/class/net";
 
 const ONE_MB = 1024 * 1024;
 
+let interfaces;
 let lastRx = 0;
 let lastTx = 0;
 let accumulated = 0;
-let notifiedMb = 100;
+let notifiedMb = 10;
 let threshold = notifiedMb;
+let displayUsage = 0;
 
 async function readBytes(INTERFACE, file) {
 	const value = await readFile(`/sys/class/net/${INTERFACE}/statistics/${file}`, "utf8");
@@ -17,7 +19,7 @@ async function readBytes(INTERFACE, file) {
 }
 
 function sendNotification(message) {
-	exec(`notify-send "Internet Usage" "${message}"`, (error, stdout, stderr) => {
+	exec(`notify-send "Internet Usage" "${message}" -t 3000`, (error, stdout, stderr) => {
 		if (error) {
 			console.error("Error:", error);
 		}
@@ -33,33 +35,41 @@ function sendNotification(message) {
 }
 
 async function initialize() {
-	lastRx = await readBytes(INTERFACES[0], "rx_bytes");
-	lastTx = await readBytes(INTERFACES[0], "tx_bytes");
-
-	lastRx += await readBytes(INTERFACES[1], "rx_bytes");
-	lastTx += await readBytes(INTERFACES[1], "tx_bytes");
+	interfaces = await readdir(INTERFACE_LIST_PATH);
+	for (const interfaceName of interfaces) {
+		lastRx += await readBytes(interfaceName, "rx_bytes");
+		lastTx += await readBytes(interfaceName, "tx_bytes");
+	}
 }
 
 async function monitor() {
-	let currentRx = await readBytes(INTERFACES[0], "rx_bytes");
-	let currentTx = await readBytes(INTERFACES[0], "tx_bytes");
+	let currentRx = 0;
+	let currentTx = 0;
 
-	currentRx += await readBytes(INTERFACES[1], "rx_bytes");
-	currentTx += await readBytes(INTERFACES[1], "tx_bytes");
+	try {
+		for (const interfaceName of interfaces) {
+			currentRx += await readBytes(interfaceName, "rx_bytes");
+			currentTx += await readBytes(interfaceName, "tx_bytes");
+		}
 
-	const rxDelta = currentRx - lastRx;
-	const txDelta = currentTx - lastTx;
+		const rxDelta = currentRx - lastRx;
+		const txDelta = currentTx - lastTx;
 
-	lastRx = currentRx;
-	lastTx = currentTx;
+		lastRx = currentRx;
+		lastTx = currentTx;
 
-	accumulated += rxDelta + txDelta;
+		accumulated += rxDelta + txDelta;
 
-	const usedMb = Math.floor(accumulated / ONE_MB);
+		const usedMb = Math.floor(accumulated / ONE_MB);
 
-	if (usedMb >= threshold) {
-		sendNotification(`${usedMb} MB used`);
-		threshold += notifiedMb;
+		if (usedMb >= threshold) {
+			displayUsage = Number((usedMb / 1000).toExponential(1));
+
+			sendNotification(`${displayUsage} GB used`);
+			threshold += notifiedMb;
+		}
+	} catch (err) {
+		await initialize();
 	}
 }
 
