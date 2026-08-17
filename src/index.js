@@ -1,7 +1,8 @@
-import { readFile, readdir } from "fs/promises";
+import { readFile, readdir, writeFile } from "fs/promises";
 import { exec } from "child_process";
 
 const INTERFACE_LIST_PATH = "/sys/class/net";
+const SAVE_STATE_FILE = "state.json";
 
 const ONE_MB = 1024 * 1024;
 
@@ -12,6 +13,31 @@ let accumulated = 0;
 let notifiedMb = 10;
 let threshold = notifiedMb;
 let displayUsage = 0;
+
+async function loadState() {
+	try {
+		const LOAD_FILE_DATA = await readFile(SAVE_STATE_FILE);
+		const PARSED_FILE_DATA = JSON.parse(LOAD_FILE_DATA);
+
+		accumulated = PARSED_FILE_DATA.accumulated ?? 0;
+	} catch (err) {
+		throw new Error(err);
+	}
+}
+
+async function saveState() {
+	try {
+		const SAVE_FILE_DATA = JSON.stringify({
+			lastRx,
+			lastTx,
+			accumulated
+		});
+
+		await writeFile(SAVE_STATE_FILE, SAVE_FILE_DATA);
+	} catch (err) {
+		throw new Error(err.message)
+	}
+}
 
 async function readBytes(INTERFACE, file) {
 	const value = await readFile(`/sys/class/net/${INTERFACE}/statistics/${file}`, "utf8");
@@ -36,6 +62,9 @@ function sendNotification(message) {
 
 async function initialize() {
 	interfaces = await readdir(INTERFACE_LIST_PATH);
+
+	lastRx = 0;
+	lastTx = 0;
 	for (const interfaceName of interfaces) {
 		lastRx += await readBytes(interfaceName, "rx_bytes");
 		lastTx += await readBytes(interfaceName, "tx_bytes");
@@ -52,8 +81,8 @@ async function monitor() {
 			currentTx += await readBytes(interfaceName, "tx_bytes");
 		}
 
-		const rxDelta = currentRx - lastRx;
-		const txDelta = currentTx - lastTx;
+		let rxDelta = currentRx - lastRx;
+		let txDelta = currentTx - lastTx;
 
 		lastRx = currentRx;
 		lastTx = currentTx;
@@ -63,7 +92,7 @@ async function monitor() {
 		const usedMb = Math.floor(accumulated / ONE_MB);
 
 		if (usedMb >= threshold) {
-			displayUsage = Number((usedMb / 1000).toExponential(1));
+			displayUsage = Number((usedMb / 1000).toFixed(4));
 
 			sendNotification(`${displayUsage} GB used`);
 			threshold += notifiedMb;
@@ -73,12 +102,30 @@ async function monitor() {
 	}
 }
 
+await loadState();
 await initialize();
 
 setInterval(async () => {
 	try {
 		await monitor();
+		await saveState();
 	} catch (err) {
 		sendNotification(err.message);
 	}
 }, 1000);
+
+
+/**
+process.on("SIGINT", saveState);
+process.on("SIGTERM", saveState);
+process.on("uncaughtException", async (err) => {
+	sendNotification(err);
+	await saveState();
+	process.exit(0);
+});
+process.on("unhandledRejection", async (err) => {
+	sendNotification(err);
+	await saveState();
+	process.exit(0);
+});
+*/
