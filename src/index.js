@@ -13,6 +13,12 @@ let accumulated = 0;
 let notifiedMb = 10;
 let threshold = notifiedMb;
 let displayUsage = 0;
+let daily = {};
+
+function getCurrentDate() {
+	const NEW_DATE = new Date();
+	return `${NEW_DATE.getFullYear()}-${String(NEW_DATE.getMonth() + 1).padStart(2, "0")}-${String(NEW_DATE.getDate()).padStart(2, "0")}`;
+}
 
 async function loadState() {
 	try {
@@ -20,6 +26,7 @@ async function loadState() {
 		const PARSED_FILE_DATA = JSON.parse(LOAD_FILE_DATA);
 
 		accumulated = PARSED_FILE_DATA.accumulated ?? 0;
+		daily = PARSED_FILE_DATA.daily ?? {};
 	} catch (err) {
 		throw new Error(err);
 	}
@@ -30,7 +37,8 @@ async function saveState() {
 		const SAVE_FILE_DATA = JSON.stringify({
 			lastRx,
 			lastTx,
-			accumulated
+			accumulated,
+			daily
 		});
 
 		await writeFile(SAVE_STATE_FILE, SAVE_FILE_DATA);
@@ -83,11 +91,18 @@ async function monitor() {
 
 		let rxDelta = currentRx - lastRx;
 		let txDelta = currentTx - lastTx;
+		let networkDelta = rxDelta + txDelta;
 
 		lastRx = currentRx;
 		lastTx = currentTx;
 
-		accumulated += rxDelta + txDelta;
+		accumulated += networkDelta;
+
+		const currentDate = getCurrentDate();
+		if (daily[currentDate] === undefined) {
+			daily[currentDate] = 0;
+		}
+		daily[currentDate] += accumulated;
 
 		const usedMb = Math.floor(accumulated / ONE_MB);
 
