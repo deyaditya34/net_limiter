@@ -1,24 +1,22 @@
 # net_limiter
 
-`net_limiter` is a lightweight Linux utility written in Node.js. It monitors the network usage reported by `/sys/class/net/*/statistics` and sends desktop notifications when the total data usage threshold is reached.
+net_limiter is a lightweight Linux utility (Node.js) that monitors system network usage by reading `/sys/class/net/*/statistics` and sends desktop notifications when configured thresholds are reached.
 
 ## Features
 
-- Reads Linux network statistics from `/sys/class/net/<iface>/statistics/rx_bytes` and `tx_bytes`
-- Aggregates RX + TX traffic across all detected network interfaces
-- Sends desktop notifications via `notify-send`
-- Checks usage every second
-- Alerts after each additional 10 MB of data usage
+- Aggregates RX + TX bytes across discovered network interfaces
+- Sends desktop notifications with `notify-send` when thresholds are crossed
+- Persists simple state to `state.json` so usage and notification progress survive restarts
 
 ## Requirements
 
 - Node.js 16 or newer
-- Linux system with `/sys/class/net` available
-- `notify-send` installed and accessible from the PATH
+- Linux with `/sys/class/net` available
+- `notify-send` (from libnotify) installed and available on PATH
 
 ## Install
 
-No external npm dependencies are required for this project.
+Clone the repo and (optionally) install dependencies. This project has no external runtime dependencies by default.
 
 ```bash
 git clone https://github.com/<your-org>/net_limiter.git
@@ -28,35 +26,37 @@ npm install
 
 ## Usage
 
-Run the monitor with Node.js:
+Start the monitor with Node.js (the main script is `src/index.js`):
 
 ```bash
-node index.js
+node src/index.js
 ```
 
-The script will initialize counters from all detected interfaces and then poll network usage once per second.
+The process polls network statistics once per second and writes a small `state.json` file to the project directory to persist `accumulated` usage and notification state.
 
-## Behavior
+## Configuration & State
 
-- The script computes the delta of received and transmitted bytes since the last check.
-- It accumulates usage across all interfaces under `/sys/class/net`.
-- When the total crosses the next 10 MB threshold, it sends a notification.
-- The threshold increments by 10 MB after each notification.
+- Edit `src/index.js` to change behavior:
+  - `ONE_MB` — byte unit used for reporting
+  - `notifiedMb` — notification interval in MB (default: 10)
+  - `INTERFACE_LIST_PATH` — path scanned for network interfaces
+- Persistent state is stored in `state.json` in the project root. The file contains counters and last-notified thresholds to avoid repeated notifications across restarts.
 
-## Customization
+## Troubleshooting
 
-The project currently does not expose runtime configuration options. To change behavior, edit `index.js`:
+- If you do not receive notifications, ensure `notify-send` is installed and that a notification daemon is running for your desktop session.
+- The tool reads all entries in `/sys/class/net`, so virtual and loopback interfaces may be included unless filtered in code.
 
-- `ONE_MB` defines the byte unit for reporting
-- `notifiedMb` sets the notification interval in MB
-- `INTERFACE_LIST_PATH` is the location scanned for interfaces
+## Development notes
 
-## Limitations
+- Entry point: `src/index.js` (ES module)
+- To run via an npm script, add a `start` script in `package.json`:
 
-- No persistence across script restarts; usage resets on launch
-- Notifications require `notify-send`
-- It does not distinguish traffic by interface or application
-- It reads all interfaces detected in `/sys/class/net`, including virtual interfaces
+```json
+"scripts": {
+  "start": "node src/index.js"
+}
+```
 
 ## License
 
