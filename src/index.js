@@ -11,9 +11,10 @@ let lastRx = 0;
 let lastTx = 0;
 let accumulated = 0;
 let notifiedMb = 10;
-let threshold = notifiedMb;
+let threshold;
 let displayUsage = 0;
 let daily = {};
+let lastNotifiedMb = {};
 
 function getCurrentDate() {
 	const NEW_DATE = new Date();
@@ -27,6 +28,8 @@ async function loadState() {
 
 		accumulated = PARSED_FILE_DATA.accumulated ?? 0;
 		daily = PARSED_FILE_DATA.daily ?? {};
+		lastNotifiedMb = PARSED_FILE_DATA.lastNotifiedMb ?? {};
+
 	} catch (err) {
 		throw new Error(err);
 	}
@@ -38,7 +41,8 @@ async function saveState() {
 			lastRx,
 			lastTx,
 			accumulated,
-			daily
+			daily,
+			lastNotifiedMb
 		});
 
 		await writeFile(SAVE_STATE_FILE, SAVE_FILE_DATA);
@@ -102,15 +106,21 @@ async function monitor() {
 		if (daily[currentDate] === undefined) {
 			daily[currentDate] = 0;
 		}
-		daily[currentDate] += accumulated;
+		daily[currentDate] += networkDelta;
 
-		const usedMb = Math.floor(accumulated / ONE_MB);
+		if (lastNotifiedMb[currentDate] === undefined) {
+			lastNotifiedMb[currentDate] = notifiedMb;
+		}
+		threshold = lastNotifiedMb[currentDate]
+
+		const usedMb = Math.floor(daily[currentDate] / ONE_MB);
 
 		if (usedMb >= threshold) {
 			displayUsage = Number((usedMb / 1000).toFixed(4));
 
 			sendNotification(`${displayUsage} GB used`);
 			threshold += notifiedMb;
+			lastNotifiedMb[currentDate] = threshold;
 		}
 	} catch (err) {
 		await initialize();
