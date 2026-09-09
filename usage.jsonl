@@ -1,0 +1,10 @@
+
+{"date":"2026-09-01","download":5068,"upload":430,"interfaces":{"eno1":{"download":5068,"upload":430,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}}}
+{"date":"2026-09-02","download":62350,"upload":40439,"interfaces":{"eno1":{"download":62350,"upload":40439,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}}}
+{"date":"2026-09-03","download":1428,"upload":8511,"interfaces":{"eno1":{"download":1428,"upload":8511,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}}}
+{"date":"2026-09-04","download":3086,"upload":1862,"interfaces":{"eno1":{"download":3086,"upload":1862,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}}}
+{"date":"2026-09-05","download":4282,"upload":2564,"interfaces":{"eno1":{"download":4282,"upload":2564,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}}}
+{"date":"2026-09-06","download":1004809028,"upload":447830090,"interfaces":{"eno1":{"download":1004809028,"upload":447830090,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}}}
+{"date":"2026-09-07","download":434755784,"upload":92446551,"interfaces":{"eno1":{"download":434755784,"upload":92446551,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}}}
+{"date":"2026-09-08","download":192,"upload":66,"interfaces":{"eno1":{"download":192,"upload":66,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}},"lastNotifiedMb":10}
+{"date":"2026-09-09","download":3582,"upload":6992,"interfaces":{"eno1":{"download":3582,"upload":6992,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}},"lastNotifiedMb":10}

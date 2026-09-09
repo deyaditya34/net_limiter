@@ -1,8 +1,12 @@
-import { readFile, readdir, writeFile, access } from "fs/promises";
+import { readFile, readdir, writeFile, access, appendFile, rename } from "fs/promises";
+import { createReadStream } from "fs";
+import readline, { Interface } from "readline";
 import { exec } from "child_process";
 
 const INTERFACE_LIST_PATH = "/sys/class/net";
 const SAVE_STATE_FILE = "state.json";
+const SAVE_STATE_FILE_TEMP = "state.json.tmp";
+const SAVE_USAGE_FILE = "usage.jsonl";
 
 const ONE_MB = 1024 * 1024;
 
@@ -10,11 +14,11 @@ let accumulated = 0;
 let totalDownload = 0;
 let totalUpload = 0;
 let notifiedMb = 10;
-let threshold;
 let displayUsage = 0;
 let interfaceState = {};
 let daily = {};
-let lastNotifiedMb = {};
+let lastNotifiedMb;
+let trackingDate;
 
 function getCurrentDate() {
 	const NEW_DATE = new Date();
@@ -31,11 +35,11 @@ async function loadState() {
 		const LOAD_FILE_DATA = await readFile(SAVE_STATE_FILE);
 		const PARSED_FILE_DATA = JSON.parse(LOAD_FILE_DATA);
 
+		trackingDate = PARSED_FILE_DATA.trackingDate ?? getCurrentDate();
 		accumulated = PARSED_FILE_DATA.accumulated ?? 0;
-		daily = PARSED_FILE_DATA.daily ?? {};
-		lastNotifiedMb = PARSED_FILE_DATA.lastNotifiedMb ?? {};
 		totalDownload = PARSED_FILE_DATA.totalDownload ?? 0;
 		totalUpload = PARSED_FILE_DATA.totalUpload ?? 0;
+		daily = PARSED_FILE_DATA.daily ?? {};
 	} catch (err) {
 		throw new Error(err);
 	}
@@ -44,16 +48,29 @@ async function loadState() {
 async function saveState() {
 	try {
 		const SAVE_FILE_DATA = JSON.stringify({
+			trackingDate,
 			totalDownload,
 			totalUpload,
 			accumulated,
-			daily,
-			lastNotifiedMb
+			daily
 		});
-
-		await writeFile(SAVE_STATE_FILE, SAVE_FILE_DATA);
+		await writeFile(SAVE_STATE_FILE_TEMP, SAVE_FILE_DATA);
+		await rename(SAVE_STATE_FILE_TEMP, SAVE_STATE_FILE);
 	} catch (err) {
-		throw new Error(err.message)
+		throw new Error(err)
+	}
+}
+
+async function appendUsage(trackingDate, usage) {
+	try {
+		await appendFile(SAVE_USAGE_FILE,
+			JSON.stringify({
+				date: trackingDate,
+				...usage
+			}) + "\n"
+		);
+	} catch (err) {
+		throw Error(err)
 	}
 }
 
@@ -79,7 +96,7 @@ function sendNotification(message) {
 }
 
 async function initialize() {
-	let interfaces = await readdir(INTERFACE_LIST_PATH);
+	const interfaces = await readdir(INTERFACE_LIST_PATH);
 
 	interfaceState = {};
 
@@ -87,6 +104,7 @@ async function initialize() {
 		const interfaceType = await getInterfaceType(interfaceName);
 		if (interfaceType === "ethernet" || interfaceType === "wifi") {
 			interfaceState[interfaceName] = {
+				type: interfaceType,
 				lastRx: await readBytes(interfaceName, "rx_bytes"),
 				lastTx: await readBytes(interfaceName, "tx_bytes")
 			}
@@ -103,11 +121,10 @@ async function getCurrentNetworkUsage() {
 			currentTx: await readBytes(interfaceName, "tx_bytes"),
 		}
 	}
-
 	return currentUsage;
 }
 
-function calculateDelta(currentUsage) {
+function calculateInterfaceDelta(currentUsage) {
 	const interfaceDelta = {};
 
 	for (const interfaceName of Object.keys(currentUsage)) {
@@ -143,32 +160,33 @@ function updateAccumulatedUsage(interfaceDelta) {
 	}
 };
 
-async function updateDailyUsage(interfaceDelta, currentDate) {
-	if (daily[currentDate] === undefined) {
-		daily[currentDate] = {
+function updateDailyUsage(interfaceDelta) {
+	if (Object.keys(daily).length <= 0) {
+		daily = {
 			download: 0,
 			upload: 0,
-			interfaces: {}
+			interfaces: {},
+			lastNotifiedMb: notifiedMb
 		};
 	}
 
 	for (const interfaceName of Object.keys(interfaceDelta)) {
-		if (daily[currentDate].interfaces[interfaceName] === undefined) {
-			daily[currentDate].interfaces[interfaceName] = {
+		if (daily.interfaces[interfaceName] === undefined) {
+			daily.interfaces[interfaceName] = {
 				download: 0,
 				upload: 0,
+				type: interfaceState[interfaceName].type
 			};
 		}
 
-		const interfaceType = await getInterfaceType(interfaceName);
-		daily[currentDate].interfaces[interfaceName].type = interfaceType;
+		daily.interfaces[interfaceName].type = interfaceState[interfaceName].type;
 
 		const { rxDelta, txDelta } = interfaceDelta[interfaceName];
-		daily[currentDate].download += rxDelta;
-		daily[currentDate].upload += txDelta;
+		daily.download += rxDelta;
+		daily.upload += txDelta;
 
-		daily[currentDate].interfaces[interfaceName].download += rxDelta;
-		daily[currentDate].interfaces[interfaceName].upload += txDelta;
+		daily.interfaces[interfaceName].download += rxDelta;
+		daily.interfaces[interfaceName].upload += txDelta;
 	}
 }
 
@@ -181,44 +199,47 @@ function updateTotalUsage(interfaceDelta) {
 	}
 }
 
-function updateDailyThreshold(currentDate) {
-	if (lastNotifiedMb[currentDate] === undefined) {
-		lastNotifiedMb[currentDate] = notifiedMb;
-	}
-	threshold = lastNotifiedMb[currentDate]
-}
-
 function checkNotification(currentDate) {
-	const usedMb = Math.floor((daily[currentDate].download + daily[currentDate].upload) / ONE_MB);
+	const usedMb = Math.floor((daily.download + daily.upload) / ONE_MB);
 
-	if (usedMb >= threshold) {
+	if (usedMb >= daily.lastNotifiedMb) {
 		displayUsage = Number((usedMb / 1000).toFixed(4));
 
 		sendNotification(`${displayUsage} GB used`);
-		threshold += notifiedMb;
-		lastNotifiedMb[currentDate] = threshold;
+
+		daily.lastNotifiedMb += notifiedMb;
 	}
 }
 
 async function monitor() {
 	try {
 		let currentDate = getCurrentDate();
+		const currentTime = performance.now();
+
+		if (currentDate !== trackingDate) {
+			await appendUsage(trackingDate, daily);
+			trackingDate = currentDate;
+
+			daily = {
+				download: 0,
+				upload: 0,
+				interfaces: {},
+				lastNotifiedMb: notifiedMb
+			}
+		}
 
 		const currentUsage = await getCurrentNetworkUsage();
-
-		const interfaceDelta = calculateDelta(currentUsage);
-
+		const interfaceDelta = calculateInterfaceDelta(currentUsage);
 		updateLastUsage(currentUsage);
-
 		updateAccumulatedUsage(interfaceDelta);
-
 		updateDailyUsage(interfaceDelta, currentDate);
-
 		updateTotalUsage(interfaceDelta);
 
-		updateDailyThreshold(currentDate);
-		calculateSpeed(interfaceDelta);
+		const elapsedSeconds = (currentTime - prevTime) / 1000;
+		calculateSpeed(interfaceDelta, elapsedSeconds);
 		checkNotification(currentDate);
+
+		prevTime = currentTime;
 	} catch (err) {
 		console.log("err -", err);
 		await initialize();
@@ -295,55 +316,6 @@ async function getUsageSummary(noOfDays) {
 	};
 }
 
-async function getUsageBetweenDates(startDate, endDate) {
-	let totalUsage = 0;
-	let totalDownload = 0;
-	let totalUpload = 0;
-	let wifiDownload = 0;
-	let wifiUpload = 0;
-	let ethernetDownload = 0;
-	let ethernetUpload = 0;
-
-	let currentDate = new Date(startDate);
-	let finalDate = new Date(endDate);
-
-	while (currentDate <= finalDate) {
-		const sanitizedDate = sanitizeDate(currentDate);
-
-		if (daily[sanitizedDate] !== undefined) {
-			totalDownload += daily[sanitizedDate].download;
-			totalUpload += daily[sanitizedDate].upload;
-
-			for (const interfaceData of Object.values(daily[sanitizedDate].interfaces)) {
-
-				if (interfaceData.type === "ethernet") {
-					ethernetDownload += interfaceData.download;
-					ethernetUpload += interfaceData.upload;
-				}
-
-				else if (interfaceData.type === "wifi") {
-					wifiDownload += interfaceData.download;
-					wifiUpload += interfaceData.upload;
-				}
-			}
-		}
-
-		currentDate.setDate(currentDate.getDate() + 1);
-	}
-
-	totalUsage = totalDownload + totalUpload;
-
-	return {
-		totalUsage,
-		totalDownload,
-		totalUpload,
-		wifiDownload,
-		wifiUpload,
-		ethernetDownload,
-		ethernetUpload
-	};
-}
-
 async function calculateLimitStatus(usage, limit) {
 	const usedGb = Number(usage.totalUsage / ONE_MB / 1000).toFixed(2);
 	const remaining = Number(limit - usedGb).toFixed(2);
@@ -356,14 +328,13 @@ async function calculateLimitStatus(usage, limit) {
 	});
 }
 
-function calculateSpeed(interfaceDelta) {
+function calculateSpeed(interfaceDelta, elapsedSeconds) {
 	const speed = {};
 
 	for (const interfaceName of Object.keys(interfaceDelta)) {
 		const { rxDelta, txDelta } = interfaceDelta[interfaceName];
-
-		const downloadMbps = rxDelta * 8 / 1000000;
-		const uploadMbps = txDelta * 8 / 1000000;
+		const downloadMbps = (rxDelta * 8) / elapsedSeconds / 1000000;
+		const uploadMbps = (txDelta * 8) / elapsedSeconds / 1000000;
 
 		speed[interfaceName] = {
 			download: `${downloadMbps.toFixed(2)} Mbps`,
@@ -374,18 +345,71 @@ function calculateSpeed(interfaceDelta) {
 	console.log({ speed });
 }
 
+async function getUsageBetweenDatesInGB(startDate, endDate, filePath = SAVE_USAGE_FILE) {
+	const result = {
+		totalUsage: 0,
+		totalDownload: 0,
+		totalUpload: 0,
+		wifiDownload: 0,
+		wifiUpload: 0,
+		ethernetDownload: 0,
+		ethernetUpload: 0
+	}
+
+	const readStream = createReadStream(filePath, { encoding: "utf8" });
+	const rl = readline.createInterface({ input: readStream, crlfDelay: Infinity });
+
+	for await (const line of rl) {
+		if (line.trim() === "") {
+			continue;
+		}
+
+		const parsedLine = JSON.parse(line);
+		if (startDate <= parsedLine.date && endDate <= parsedLine.date) {
+			result.totalDownload += parsedLine.download;
+			result.totalUpload += parsedLine.upload;
+
+			for (const interfaceData of Object.values(parsedLine.interfaces)) {
+				if (interfaceData.type === "ethernet") {
+					result.ethernetDownload += interfaceData.download;
+					result.ethernetUpload += interfaceData.upload;
+				}
+
+				if (interfaceData.type === "wifi") {
+					result.wifiDownload += interfaceData.download;
+					result.wifiUpload += interfaceData.upload;
+				}
+			}
+		}
+	}
+
+	result.totalUsage += result.totalDownload + result.totalUpload;
+	
+	for (const usage of Object.keys(result)) {
+		result[usage] = result[usage] / 1000000000; 
+	}
+
+	return result;
+}
+
+async function start() {
+	while (true) {
+		try {
+			await monitor();
+			await saveState();
+		} catch (err) {
+			console.error(err);
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, 500));
+	}
+}
+
 await loadState();
 await initialize();
-
-setInterval(async () => {
-	try {
-		await monitor();
-		await saveState();
-	} catch (err) {
-		sendNotification(err.message);
-	}
-}, 1000);
-
+let prevTime = performance.now();
+readJsonl("2026-09-01", "2026-09-05");
+//start();
 /**
 process.on("SIGINT", saveState);
 process.on("SIGTERM", saveState);
