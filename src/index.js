@@ -270,50 +270,12 @@ async function getUsageSummary(noOfDays) {
 	const startDate = new Date(endDate);
 	startDate.setDate(endDate.getDate() - (noOfDays - 1));
 
-	let totalUsage = 0;
-	let totalDownload = 0;
-	let totalUpload = 0;
-	let wifiDownload = 0;
-	let wifiUpload = 0;
-	let ethernetDownload = 0;
-	let ethernetUpload = 0;
+	const sanitizedStartDate = sanitizeDate(startDate);
+	const sanitizedEndDate = sanitizeDate(endDate);
 
-	for (let i = 0; i < noOfDays; i++) {
-		let date = new Date(endDate);
-		date.setDate(endDate.getDate() - i);
+	const result = await getUsageBetweenDatesInGB(sanitizedStartDate, sanitizedEndDate);
 
-		const sanitizedDate = sanitizeDate(date);
-		if (daily[sanitizedDate] !== undefined) {
-			totalUsage += daily[sanitizedDate].download;
-			totalUsage += daily[sanitizedDate].upload;
-
-			totalDownload += daily[sanitizedDate].download;
-			totalUpload += daily[sanitizedDate].upload;
-
-			for (const interfaceData of Object.values(daily[sanitizedDate].interfaces)) {
-
-				if (interfaceData.type === "ethernet") {
-					ethernetDownload += interfaceData.download;
-					ethernetUpload += interfaceData.upload;
-				}
-
-				else if (interfaceData.type === "wifi") {
-					wifiDownload += interfaceData.download;
-					wifiUpload += interfaceData.upload;
-				}
-			}
-		}
-	}
-
-	return {
-		totalUsage,
-		totalDownload,
-		totalUpload,
-		wifiDownload,
-		wifiUpload,
-		ethernetDownload,
-		ethernetUpload
-	};
+	return result;
 }
 
 async function calculateLimitStatus(usage, limit) {
@@ -355,7 +317,6 @@ async function getUsageBetweenDatesInGB(startDate, endDate, filePath = SAVE_USAG
 		ethernetDownload: 0,
 		ethernetUpload: 0
 	}
-
 	const readStream = createReadStream(filePath, { encoding: "utf8" });
 	const rl = readline.createInterface({ input: readStream, crlfDelay: Infinity });
 
@@ -365,7 +326,8 @@ async function getUsageBetweenDatesInGB(startDate, endDate, filePath = SAVE_USAG
 		}
 
 		const parsedLine = JSON.parse(line);
-		if (startDate <= parsedLine.date && endDate <= parsedLine.date) {
+
+		if (startDate <= parsedLine.date && endDate >= parsedLine.date) {
 			result.totalDownload += parsedLine.download;
 			result.totalUpload += parsedLine.upload;
 
@@ -384,9 +346,9 @@ async function getUsageBetweenDatesInGB(startDate, endDate, filePath = SAVE_USAG
 	}
 
 	result.totalUsage += result.totalDownload + result.totalUpload;
-	
+
 	for (const usage of Object.keys(result)) {
-		result[usage] = result[usage] / 1000000000; 
+		result[usage] = `${Number(result[usage] / 1000000000).toFixed(2)} GBps`;
 	}
 
 	return result;
@@ -408,8 +370,10 @@ async function start() {
 await loadState();
 await initialize();
 let prevTime = performance.now();
-readJsonl("2026-09-01", "2026-09-05");
+getUsageSummary(15);
+//getUsageBetweenDatesInGB("2026-08-27", "2026-09-10");
 //start();
+
 /**
 process.on("SIGINT", saveState);
 process.on("SIGTERM", saveState);
