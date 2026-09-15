@@ -1,2 +1,0 @@
-{"date":"2026-09-14","download":129195519,"upload":3182722,"interfaces":{"eno1":{"download":129195269,"upload":3182722,"type":"ethernet"},"wlan1":{"download":250,"upload":0,"type":"wifi"},"wlan0":{"download":0,"upload":0,"type":"wifi"}},"lastNotifiedMb":130}
-{"date":"2026-09-15","download":863236,"upload":31555,"interfaces":{"eno1":{"download":863236,"upload":31555,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}},"lastNotifiedMb":10}
