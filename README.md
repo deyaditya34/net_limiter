@@ -1,22 +1,23 @@
 # net_limiter
 
-net_limiter is a lightweight Linux utility (Node.js) that monitors system network usage by reading `/sys/class/net/*/statistics` and sends desktop notifications when configured thresholds are reached.
+net_limiter is a lightweight Linux network monitor written in Node.js. It reads raw byte counters from `/sys/class/net/*/statistics`, tracks per-interface and aggregate usage, and emits desktop notifications when daily usage crosses a configured MB threshold.
 
 ## Features
 
-- Aggregates RX + TX bytes across discovered network interfaces
-- Sends desktop notifications with `notify-send` when thresholds are crossed
-- Persists simple state to `state.json` so usage and notification progress survive restarts
+- Tracks total, daily, and per-interface download/upload bytes
+- Filters to active Ethernet and Wi‑Fi interfaces only
+- Calculates live speeds from byte deltas over time
+- Saves persistent state to `state.json` so usage and notification checkpoints survive process restarts
+- Appends daily summaries to `usage.jsonl` for later reporting
+- Sends `notify-send` alerts when the configured usage threshold is reached
 
 ## Requirements
 
-- Node.js 16 or newer
 - Linux with `/sys/class/net` available
-- `notify-send` (from libnotify) installed and available on PATH
+- Node.js 16 or newer
+- `notify-send` installed and available in `PATH` for desktop notifications
 
-## Install
-
-Clone the repo and (optionally) install dependencies. This project has no external runtime dependencies by default.
+## Installation
 
 ```bash
 git clone https://github.com/<your-org>/net_limiter.git
@@ -24,39 +25,78 @@ cd net_limiter
 npm install
 ```
 
-## Usage
+Create a `.env` file in the project root:
 
-Start the monitor with Node.js (the main script is `src/index.js`):
+```env
+NOTIFY_MB=10
+DATA_DIR=data
+```
+
+The runtime expects these variables to exist before startup; the app loads them from `src/config/env.js` using `dotenv`.
+
+## Running
+
+Start the monitor directly:
 
 ```bash
 node src/index.js
 ```
 
-The process polls network statistics once per second and writes a small `state.json` file to the project directory to persist `accumulated` usage and notification state.
+This process runs continuously and polls the interface counters every second. It stores the current state and usage history under the configured `DATA_DIR` directory.
 
-## Configuration & State
+## How it works
 
-- Edit `src/index.js` to change behavior:
-  - `ONE_MB` — byte unit used for reporting
-  - `notifiedMb` — notification interval in MB (default: 10)
-  - `INTERFACE_LIST_PATH` — path scanned for network interfaces
-- Persistent state is stored in `state.json` in the project root. The file contains counters and last-notified thresholds to avoid repeated notifications across restarts.
+- `src/index.js` starts the monitoring loop and loads existing state on startup
+- `src/network/interfaces.js` enumerates interfaces and stores the last observed RX/TX counters
+- `src/network/counters.js` reads byte totals from `/sys/class/net/<iface>/statistics/{rx_bytes,tx_bytes}`
+- `src/network/usage.js` calculates deltas, updates accumulated daily totals, and tracks per-interface usage
+- `src/monitoring/notification.js` sends a notification whenever `STATE.daily.download + STATE.daily.upload` exceeds the next threshold in MB
+- `src/storage/state.js` writes the current monitor state to `state.json`
+- `src/storage/usageHistory.js` appends JSON lines to `usage.jsonl` whenever a day boundary is reached
+
+## State and output files
+
+The project writes these files under `DATA_DIR`:
+
+- `state.json` — persisted monitor state including totals, daily usage, and the last notification threshold
+- `usage.jsonl` — daily usage snapshots, one JSON object per line
+- `state.json.tmp` — temporary file used while saving state atomically
+
+Example `state.json` shape:
+
+```json
+{
+  "accumulated": 0,
+  "totalDownload": 0,
+  "totalUpload": 0,
+  "daily": {
+    "download": 0,
+    "upload": 0,
+    "interfaces": {},
+    "lastNotifiedMb": 10
+  },
+  "trackingDate": "2026-09-15"
+}
+```
+
+## Configuration
+
+The live threshold is controlled by `NOTIFY_MB` in `.env`:
+
+- `NOTIFY_MB` sets the usage step in MB for desktop notifications
+- Each time the daily total exceeds the next notification threshold, the app sends a message and increments the next checkpoint
+
+`DATA_DIR` is required and determines where the runtime creates and reads its state and usage files. Relative paths are resolved from the directory where the command is started.
 
 ## Troubleshooting
 
-- If you do not receive notifications, ensure `notify-send` is installed and that a notification daemon is running for your desktop session.
-- The tool reads all entries in `/sys/class/net`, so virtual and loopback interfaces may be included unless filtered in code.
+- If notifications do not appear, verify `notify-send` is installed and a notification daemon is active in your desktop session
+- If no interfaces are tracked, confirm you are running on Linux and that `/sys/class/net` contains Ethernet or Wi‑Fi entries
+- If the app stops updating, check the terminal logs for errors; the monitor catches and logs runtime failures and then re-initializes interfaces
 
-## Development notes
+## Notes
 
-- Entry point: `src/index.js` (ES module)
-- To run via an npm script, add a `start` script in `package.json`:
-
-```json
-"scripts": {
-  "start": "node src/index.js"
-}
-```
+This project is intentionally minimal and is tuned for local monitoring on a Linux workstation. It is not a full daemon service manager or a cross-platform network tool.
 
 ## License
 

@@ -1,1 +1,1 @@
-{"trackingDate":"2026-09-09","totalDownload":1628396472,"totalUpload":544823546,"accumulated":2173220018,"daily":{"download":188756740,"upload":4486471,"interfaces":{"eno1":{"download":188756740,"upload":4486471,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}},"lastNotifiedMb":190}}
+{"accumulated":3084035503,"totalDownload":2399415540,"totalUpload":684618801,"daily":{"download":0 ,"upload": 0,"interfaces":{"eno1":{"download":0 ,"upload":0,"type":"ethernet"},"wlan0":{"download":0,"upload":0,"type":"wifi"}},"lastNotifiedMb":10},"trackingDate":"2026-09-15"}
