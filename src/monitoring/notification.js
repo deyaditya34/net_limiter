@@ -1,6 +1,6 @@
 import { exec } from "child_process";
-import { STATE } from "./monitor.js";
-import {NOTIFY_MB} from "../config/env.js";
+import { STATE } from "../state/state.js";
+import { NOTIFY_MB } from "../config/env.js";
 
 const ONE_MB = 1024 * 1024;
 let displayUsage = 0;

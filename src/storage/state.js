@@ -1,5 +1,5 @@
 import { writeFile, rename, readFile } from "fs/promises";
-import { STATE } from "../monitoring/monitor.js";
+import { STATE } from "../state/state.js";
 import { getCurrentDate } from "../utils/date.js";
 import { SAVE_STATE_FILE, SAVE_STATE_FILE_TEMP } from "../config/constants.js";
 

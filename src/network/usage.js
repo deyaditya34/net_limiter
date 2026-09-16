@@ -1,6 +1,6 @@
-import { STATE } from "../monitoring/monitor.js";
+import { STATE } from "../state/state.js";
 import { interfaceState } from "./interfaces.js";
-import {NOTIFY_MB} from "../config/env.js";
+import { NOTIFY_MB } from "../config/env.js";
 
 export function calculateInterfaceDelta(currentUsage) {
 	const interfaceDelta = {};

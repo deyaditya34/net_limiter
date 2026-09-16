@@ -13,15 +13,7 @@ import { checkNotification } from "./notification.js";
 import { initialize } from "../network/interfaces.js";
 import { MONITOR_INTERVAL_MS, NOTIFY_MB } from "../config/env.js";
 import { saveState } from "../storage/state.js";
-
-export const STATE = {
-	accumulated: 0,
-	totalDownload: 0,
-	totalUpload: 0,
-	daily: {},
-	trackingDate: null,
-	prevTime: performance.now(),
-}
+import { STATE } from "../state/state.js";
 
 async function monitor() {
 	try {
