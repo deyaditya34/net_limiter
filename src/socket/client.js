@@ -86,6 +86,10 @@ const requests = [
 		command: "limit",
 		subCommand: "get"
 	},
+	{
+		id: 13,
+		command: "session"
+	}
 ]
 
 const client = net.createConnection(SOCKET_PATH, () => {

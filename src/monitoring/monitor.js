@@ -9,6 +9,7 @@ import {
 	updateTotalUsage
 } from "../network/usage.js";
 import { calculateSpeed } from "../network/speed.js";
+import { updateSessionUsage } from "../network/session.js";
 import { checkNotification } from "./notification.js";
 import { initialize } from "../network/interfaces.js";
 import { MONITOR_INTERVAL_MS, NOTIFY_MB } from "../config/env.js";
@@ -38,6 +39,7 @@ async function monitor() {
 		updateAccumulatedUsage(interfaceDelta);
 		updateDailyUsage(interfaceDelta, currentDate);
 		updateTotalUsage(interfaceDelta);
+		updateSessionUsage(interfaceDelta);
 
 		const elapsedSeconds = (currentTime - STATE.prevTime) / 1000;
 		STATE.currentSpeed = calculateSpeed(interfaceDelta, elapsedSeconds);

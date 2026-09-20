@@ -1,6 +1,7 @@
 import { calculateSpeed } from "../network/speed.js";
 import { getUsageSummary, getUsageBetweenDates, formatUsage } from "../storage/usageHistory.js";
 import { getLimit, setLimit } from "../network/limit.js";
+import { formatSessionUsage } from "../network/session.js";
 import { calculateDatesFromNoOfDays } from "../utils/date.js";
 import { STATE } from "../state/state.js";
 
@@ -126,15 +127,18 @@ export async function handleRequest(request) {
 				}
 
 				return await setLimit(options.from, options.to, options.amount);
-			} 
+			}
 
 			else if (subCommand === "get") {
 				return await getLimit();
-			} 
+			}
 
 			else {
 				throw new Error(`ERROR: unknown sub command - '${subCommand}`);
 			}
+
+		case "session":
+			return formatSessionUsage();
 
 		case "summary":
 			return {
