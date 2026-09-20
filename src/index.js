@@ -3,6 +3,7 @@ import { startMonitoring } from "./monitoring/monitor.js";
 import { loadState } from "./storage/state.js";
 import { initialize } from "./network/interfaces.js";
 import { initializeStorage } from "./storage/storage.js";
+import { server } from "./socket/server.js";
 
 
 async function start() {

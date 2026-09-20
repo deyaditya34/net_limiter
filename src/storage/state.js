@@ -5,7 +5,6 @@ import { SAVE_STATE_FILE, SAVE_STATE_FILE_TEMP } from "../config/constants.js";
 
 export async function saveState() {
 	try {
-		console.log("save state STATE -", STATE);
 		const SAVE_FILE_DATA = JSON.stringify(STATE);
 		await writeFile(SAVE_STATE_FILE_TEMP, SAVE_FILE_DATA);
 		await rename(SAVE_STATE_FILE_TEMP, SAVE_STATE_FILE);
@@ -23,7 +22,9 @@ export async function loadState() {
 		STATE.totalDownload = PARSED_FILE_DATA.totalDownload ?? 0;
 		STATE.totalUpload = PARSED_FILE_DATA.totalUpload ?? 0;
 		STATE.daily = PARSED_FILE_DATA.daily ?? {};
-		console.log("STATE -", STATE);
+		STATE.limit = PARSED_FILE_DATA.limit ?? 0;
+		STATE.limitStartDate = PARSED_FILE_DATA.limitStartDate ?? "";
+		STATE.limitEndDate = PARSED_FILE_DATA.limitEndDate ?? "";
 	} catch (err) {
 		throw err;
 	}

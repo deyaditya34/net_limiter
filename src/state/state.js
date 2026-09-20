@@ -5,4 +5,8 @@ export const STATE = {
 	daily: {},
 	trackingDate: null,
 	prevTime: performance.now(),
+	currentSpeed: "", // value matches with the return value of calculateSpeed() in monitoring engine
+	limit: 0,
+	limitStartDate: "",
+	limitEndDate: ""
 }

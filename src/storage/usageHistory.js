@@ -1,8 +1,9 @@
-import { appendFile } from "fs/promises";
-import { createReadStream } from "fs";
 import readline from "readline";
-import { getCurrentDate, sanitizeDate } from "../utils/date.js";
-import {SAVE_USAGE_FILE} from "../config/constants.js";
+import { createReadStream } from "fs";
+import { appendFile } from "fs/promises";
+import { STATE } from "../state/state.js";
+import { calculateDatesFromNoOfDays } from "../utils/date.js";
+import { SAVE_USAGE_FILE } from "../config/constants.js";
 
 export async function appendUsage(trackingDate, usage) {
 	try {
@@ -18,29 +19,26 @@ export async function appendUsage(trackingDate, usage) {
 }
 
 export async function getUsageSummary(noOfDays) {
-	const endDate = new Date(getCurrentDate());
 
-	const startDate = new Date(endDate);
-	startDate.setDate(endDate.getDate() - (noOfDays - 1));
+	const { sanitizedStartDate, sanitizedEndDate } = calculateDatesFromNoOfDays(noOfDays, -1);
 
-	const sanitizedStartDate = sanitizeDate(startDate);
-	const sanitizedEndDate = sanitizeDate(endDate);
-
-	const result = await getUsageBetweenDatesInGB(sanitizedStartDate, sanitizedEndDate);
-
-	console.log(result);
+	const result = await getUsageBetweenDates(sanitizedStartDate, sanitizedEndDate);
+	return result;
 }
 
-export async function getUsageBetweenDatesInGB(startDate, endDate, filePath = SAVE_USAGE_FILE) {
+export async function getUsageBetweenDates(startDate, endDate, filePath = SAVE_USAGE_FILE) {
 	const result = {
 		totalUsage: 0,
 		totalDownload: 0,
 		totalUpload: 0,
+		wifiUsage: 0,
 		wifiDownload: 0,
 		wifiUpload: 0,
+		ethernetUsage: 0,
 		ethernetDownload: 0,
 		ethernetUpload: 0
 	}
+
 	const readStream = createReadStream(filePath, { encoding: "utf8" });
 	const rl = readline.createInterface({ input: readStream, crlfDelay: Infinity });
 
@@ -50,7 +48,6 @@ export async function getUsageBetweenDatesInGB(startDate, endDate, filePath = SA
 		}
 
 		const parsedLine = JSON.parse(line);
-
 		if (startDate <= parsedLine.date && endDate >= parsedLine.date) {
 			result.totalDownload += parsedLine.download;
 			result.totalUpload += parsedLine.upload;
@@ -69,10 +66,18 @@ export async function getUsageBetweenDatesInGB(startDate, endDate, filePath = SA
 		}
 	}
 
+	result.wifiUsage += result.wifiDownload + result.wifiUpload;
+	result.ethernetUsage += result.ethernetDownload + result.ethernetUpload;
 	result.totalUsage += result.totalDownload + result.totalUpload;
 
-	for (const usage of Object.keys(result)) {
-		result[usage] = `${Number(result[usage] / 1000000000).toFixed(2)} GB`;
+	return result;
+}
+
+export function formatUsage(usage) {
+let result = {};
+
+	for (const field of Object.keys(usage)) {
+		result[field] = `${Number(usage[field] / 100000000).toFixed(2)} GB`;
 	}
 
 	return result;

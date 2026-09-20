@@ -12,5 +12,5 @@ export function calculateSpeed(interfaceDelta, elapsedSeconds) {
 		}
 	}
 
-	console.log({ speed });
+	return speed;
 }

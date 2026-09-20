@@ -40,7 +40,7 @@ async function monitor() {
 		updateTotalUsage(interfaceDelta);
 
 		const elapsedSeconds = (currentTime - STATE.prevTime) / 1000;
-		calculateSpeed(interfaceDelta, elapsedSeconds);
+		STATE.currentSpeed = calculateSpeed(interfaceDelta, elapsedSeconds);
 		checkNotification(currentDate);
 
 		STATE.prevTime = currentTime;

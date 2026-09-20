@@ -32,7 +32,60 @@ const requests = [
 		options: {
 			days: 350
 		}
-	}
+	},
+	{
+		id: 5,
+		command: "interface",
+		options: {
+			days: 30
+		}
+	},
+	{
+		id: 6,
+		command: "interface",
+		options: {
+			from: "2026-09-01",
+			to: "2026-09-19"
+		}
+	},
+	{
+		id: 7,
+		command: "speed"
+	},
+	{
+		id: 8,
+		command: "limit",
+		subCommand: "get"
+	},
+	{
+		id: 9,
+		command: "limit",
+		subCommand: "set",
+		options: {
+			days: 30,
+			amount: 1
+		},
+	},
+	{
+		id: 10,
+		command: "limit",
+		subCommand: "set",
+		options: {
+			from: "2026-09-20",
+			to: "2026-10-20",
+			amount: 2,
+		},
+	},
+	{
+		id: 11,
+		command: "limit",
+		subCommand: "kuch bhi"
+	},
+	{
+		id: 12,
+		command: "limit",
+		subCommand: "get"
+	},
 ]
 
 const client = net.createConnection(SOCKET_PATH, () => {
@@ -56,8 +109,6 @@ client.on("data", (data) => {
 
 		const response = decodeMessage(message);
 		console.log("response -", response);
-
-		client.end();
 	}
 })
 

@@ -5,17 +5,15 @@ import { handleRequest } from "../commands/handler.js";
 
 const SOCKET_PATH = "test.sock";
 
-const server = net.createServer((socket) => {
+export const server = net.createServer((socket) => {
 	console.log("client connected");
 
 	let buffer = "";
 	socket.on("data", async (data) => {
-		console.log("buffer -", data);
 		buffer += data.toString();
 
 		let newLineIndex;
-		console.log("data -", buffer.toString());
-		console.log("\n index -", buffer.indexOf("\n"));
+
 		while ((newLineIndex = buffer.indexOf("\n")) !== -1) {
 			const message = buffer.slice(0, newLineIndex);
 
