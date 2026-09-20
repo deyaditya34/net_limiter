@@ -89,6 +89,10 @@ const requests = [
 	{
 		id: 13,
 		command: "session"
+	},
+	{
+		id: 14,
+		command: "status"
 	}
 ]
 

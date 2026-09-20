@@ -140,6 +140,18 @@ export async function handleRequest(request) {
 		case "session":
 			return formatSessionUsage();
 
+		case "status":
+			return {
+				today: {
+					date: STATE.trackingDate,
+					download: STATE.daily.download,
+					upload: STATE.daily.upload,
+					total: STATE.daily.download + STATE.daily.upload
+				},
+				speed: STATE.currentSpeed,
+				session: formatSessionUsage()
+			}
+
 		case "summary":
 			return {
 				days: 10,
