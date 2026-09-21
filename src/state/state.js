@@ -2,10 +2,7 @@ export const STATE = {
 	accumulated: 0,
 	totalDownload: 0,
 	totalUpload: 0,
-	notification: {
-		threshold: 1000000000,
-		enabled: true
-	},
+	notification: {}, // value is set from the command handler 'notification' case
 	daily: {},
 	session: {}, // value is set from the updateSessionUsage() in monitoring engine
 	trackingDate: null,

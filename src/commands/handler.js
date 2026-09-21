@@ -4,6 +4,7 @@ import { getLimit, setLimit } from "../network/limit.js";
 import { formatSessionUsage } from "../network/session.js";
 import { calculateDatesFromNoOfDays } from "../utils/date.js";
 import { STATE } from "../state/state.js";
+import { ONE_GB } from "../config/constants.js";
 
 export async function handleRequest(request) {
 	let options;
@@ -150,7 +151,11 @@ export async function handleRequest(request) {
 					total: STATE.daily.download + STATE.daily.upload
 				},
 				speed: STATE.currentSpeed,
-				session: formatSessionUsage()
+				session: formatSessionUsage(),
+				notification: {
+					threshold: `${(STATE.notification.threshold / ONE_GB).toFixed(2)} GB`,
+					enabled: STATE.notification.enabled
+				}
 			}
 
 		case "notification":
@@ -183,12 +188,6 @@ export async function handleRequest(request) {
 			}
 
 			return result;
-		case "summary":
-			return {
-				days: 10,
-				downloadTotal: 4000,
-				uploadTotal: 3500
-			};
 
 		default:
 			throw new Error(`Unknown Command: ${request.command}`);
