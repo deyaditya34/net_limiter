@@ -6,3 +6,4 @@ export const SAVE_STATE_FILE = path.join(DATA_DIR, "state.json");
 export const SAVE_STATE_FILE_TEMP = path.join(DATA_DIR, "state.json.tmp");
 export const SAVE_USAGE_FILE = path.join(DATA_DIR, "usage.jsonl");
 
+export const ONE_GB = 1000000000;

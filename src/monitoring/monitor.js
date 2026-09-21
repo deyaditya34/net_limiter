@@ -12,7 +12,7 @@ import { calculateSpeed } from "../network/speed.js";
 import { updateSessionUsage } from "../network/session.js";
 import { checkNotification } from "./notification.js";
 import { initialize } from "../network/interfaces.js";
-import { MONITOR_INTERVAL_MS, NOTIFY_MB } from "../config/env.js";
+import { MONITOR_INTERVAL_MS } from "../config/env.js";
 import { saveState } from "../storage/state.js";
 import { STATE } from "../state/state.js";
 
@@ -29,7 +29,7 @@ async function monitor() {
 				download: 0,
 				upload: 0,
 				interfaces: {},
-				lastNotifiedMb: NOTIFY_MB
+				lastNotifiedMb: STATE.notification.threshold
 			}
 		}
 
@@ -43,7 +43,10 @@ async function monitor() {
 
 		const elapsedSeconds = (currentTime - STATE.prevTime) / 1000;
 		STATE.currentSpeed = calculateSpeed(interfaceDelta, elapsedSeconds);
-		checkNotification(currentDate);
+
+		if (STATE.notification.enabled) {
+			checkNotification(currentDate);
+		}
 
 		STATE.prevTime = currentTime;
 	} catch (err) {

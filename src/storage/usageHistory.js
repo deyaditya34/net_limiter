@@ -3,7 +3,7 @@ import { createReadStream } from "fs";
 import { appendFile } from "fs/promises";
 import { STATE } from "../state/state.js";
 import { calculateDatesFromNoOfDays } from "../utils/date.js";
-import { SAVE_USAGE_FILE } from "../config/constants.js";
+import { SAVE_USAGE_FILE, ONE_GB } from "../config/constants.js";
 
 export async function appendUsage(trackingDate, usage) {
 	try {
@@ -74,10 +74,10 @@ export async function getUsageBetweenDates(startDate, endDate, filePath = SAVE_U
 }
 
 export function formatUsage(usage) {
-let result = {};
+	let result = {};
 
 	for (const field of Object.keys(usage)) {
-		result[field] = `${Number(usage[field] / 100000000).toFixed(2)} GB`;
+		result[field] = `${Number(usage[field] / ONE_GB).toFixed(2)} GB`;
 	}
 
 	return result;

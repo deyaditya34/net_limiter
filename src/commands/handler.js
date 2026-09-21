@@ -10,6 +10,7 @@ export async function handleRequest(request) {
 	let hasDays;
 	let hasDateRange;
 	let usage;
+	let subCommand;
 	let result;
 
 	switch (request.command) {
@@ -93,7 +94,7 @@ export async function handleRequest(request) {
 			return STATE.currentSpeed;
 
 		case "limit":
-			const subCommand = request.subCommand;
+			subCommand = request.subCommand;
 			if (subCommand === "set") {
 				options = request.options;
 
@@ -152,6 +153,36 @@ export async function handleRequest(request) {
 				session: formatSessionUsage()
 			}
 
+		case "notification":
+			subCommand = request.subCommand;
+			options = request.options;
+			result = {};
+
+			if (subCommand) {
+				if (subCommand === "enable") {
+					STATE.notification.enabled = true;
+					result.message = "notification enabled";
+				}
+				else if (subCommand === "disable") {
+					STATE.notification.enabled = false;
+					result.message = "notification disabled";
+				} else {
+					throw new Error("Error: unknown subcommand");
+				}
+			}
+
+			if (options) {
+				const hasThreshold = options.threshold !== undefined;
+
+				if (hasThreshold && Number(options.threshold) > 0) {
+					STATE.notification.threshold = options.threshold * 1000000000;
+					result.threshold = `threshold set for '${options.threshold}' GB`;
+				} else {
+					throw new Error("Error: unknown command");
+				}
+			}
+
+			return result;
 		case "summary":
 			return {
 				days: 10,

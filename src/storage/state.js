@@ -25,6 +25,7 @@ export async function loadState() {
 		STATE.limit = PARSED_FILE_DATA.limit ?? 0;
 		STATE.limitStartDate = PARSED_FILE_DATA.limitStartDate ?? "";
 		STATE.limitEndDate = PARSED_FILE_DATA.limitEndDate ?? "";
+		STATE.notification = PARSED_FILE_DATA.notification ?? {};
 	} catch (err) {
 		throw err;
 	}

@@ -12,6 +12,5 @@ function getEnv(name) {
 }
 
 export const DATA_DIR = getEnv("DATA_DIR");
-export const NOTIFY_MB = Number(getEnv("NOTIFY_MB"));
 export const MONITOR_INTERVAL_MS = 1000;
 

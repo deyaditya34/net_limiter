@@ -93,6 +93,19 @@ const requests = [
 	{
 		id: 14,
 		command: "status"
+	},
+	{
+		id: 15,
+		command: "notification",
+		subCommand: "disable",
+		options: {
+			threshold: 2
+		}
+	},
+	{
+		id: 16,
+		command: "notification",
+		subCommand: "enable"
 	}
 ]
 
