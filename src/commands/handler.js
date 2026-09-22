@@ -2,6 +2,7 @@ import { calculateSpeed } from "../network/speed.js";
 import { getUsageSummary, getUsageBetweenDates, formatUsage } from "../storage/usageHistory.js";
 import { getLimit, setLimit } from "../network/limit.js";
 import { formatSessionUsage } from "../network/session.js";
+import { displayHelp } from "../commands/help.js";
 import { calculateDatesFromNoOfDays } from "../utils/date.js";
 import { STATE } from "../state/state.js";
 import { ONE_GB } from "../config/constants.js";
@@ -189,6 +190,35 @@ export async function handleRequest(request) {
 
 			return result;
 
+		case "help":
+			return `
+Usage:
+	usage --days <number>			Show usage for the last N days
+	usage --from <date> --to <date>	Show usage between two dates
+
+Interface:
+	interface --days <number>		Show interface usage for the last N days
+	interface --from <date> --to <date>	Show interface usage between two dates
+
+Monitoring:
+	speed					Show current network speed
+	session					Show current session usage
+	status					Show current Net Limiter status
+
+Limit:
+	limit set --amount <GB> --days <number>	Set a usage limit for N days
+	limit set --amount <GB> --from <date> --to <date>
+						Set a usage limit for a date range
+	limit get				Show current usage limit
+
+Notification:
+	notification enable			Enable usage notifications
+	notification disable			Disable usage notifications
+	notification --threshold <GB>		Set notification threshold
+
+General:
+	help					Show this help message
+`;
 		default:
 			throw new Error(`Unknown Command: ${request.command}`);
 	}

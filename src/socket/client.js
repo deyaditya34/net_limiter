@@ -106,6 +106,10 @@ const requests = [
 		id: 16,
 		command: "notification",
 		subCommand: "enable"
+	},
+	{
+		id: 17,
+		command: "help"
 	}
 ]
 
