@@ -3,14 +3,12 @@ import { getUsageSummary, getUsageBetweenDates, formatUsage } from "../storage/u
 import { getLimit, setLimit } from "../network/limit.js";
 import { formatSessionUsage } from "../network/session.js";
 import { displayHelp } from "../commands/help.js";
-import { calculateDatesFromNoOfDays } from "../utils/date.js";
+import { calculateDatesFromNoOfDays, sanitizeDate } from "../utils/date.js";
 import { STATE } from "../state/state.js";
 import { ONE_GB } from "../config/constants.js";
 
 export async function handleRequest(request) {
 	let options;
-	let hasDays;
-	let hasDateRange;
 	let usage;
 	let subCommand;
 	let result;
@@ -19,23 +17,15 @@ export async function handleRequest(request) {
 		case "usage":
 			options = request.options;
 
-			hasDays = options.days !== undefined;
-			hasDateRange = options.from !== undefined && options.from !== undefined;
-
-			if (!hasDays && !hasDateRange) {
-				throw new Error("Usage requires either 'days' or both 'from' and 'to'");
-			}
-
-			if (hasDays && hasDateRange) {
-				throw new Error("Usage cannot use 'days' together with 'from' and 'to'");
-			}
-
-			if (hasDays) {
-				if (!Number.isInteger(options.days) || options.days <= 0) {
-					throw new Error("'days' must be a positive integer");
-				}
-
+			if (options.days !== undefined) {
 				usage = await getUsageSummary(options.days);
+				result = formatUsage(usage);
+				return {
+					totalDownload: result.totalDownload,
+					totalUpload: result.totalUpload
+				}
+			} else {
+				usage = await getUsageBetweenDates(sanitizeDate(options.from), sanitizeDate(options.to));
 				result = formatUsage(usage);
 				return {
 					totalDownload: result.totalDownload,
@@ -43,45 +33,16 @@ export async function handleRequest(request) {
 				}
 			}
 
-			usage = await getUsageBetweenDates(options.from, options.to);
-			result = formatUsage(usage);
-			return {
-				totalDownload: result.totalDownload,
-				totalUpload: result.totalUpload
-			}
-
 		case "interface":
 			options = request.options;
 
-			hasDays = options.days !== undefined;
-			hasDateRange = options.from !== undefined && options.from !== undefined;
-
-			if (!hasDays && !hasDateRange) {
-				throw new Error("Usage requires either 'days' or both 'from' and 'to'");
-			}
-
-			if (hasDays && hasDateRange) {
-				throw new Error("Usage cannot use 'days' together with 'from' and 'to'");
-			}
-
-			if (hasDays) {
-				if (!Number.isInteger(options.days) || options.days <= 0) {
-					throw new Error("'days' must be a positive integer");
-				}
-
+			if (options.days !== undefined) {
 				usage = await getUsageSummary(options.days);
-				result = formatUsage(usage);
-				return {
-					wifiUsage: result.wifiUsage,
-					ethernetUsage: result.ethernetUsage,
-					wifiDownload: result.wifiDownload,
-					wifiUpload: result.wifiUpload,
-					ethernetDownload: result.ethernetDownload,
-					ethernetUpload: result.ethernetUpload
-				}
+			}
+			else {
+				usage = await getUsageBetweenDates(options.from, options.to);
 			}
 
-			usage = await getUsageBetweenDates(options.from, options.to);
 			result = formatUsage(usage);
 			return {
 				wifiUsage: result.wifiUsage,
@@ -100,45 +61,15 @@ export async function handleRequest(request) {
 			if (subCommand === "set") {
 				options = request.options;
 
-				let hasAmount = options.amount !== undefined;
-				hasDays = options.days !== undefined;
-				hasDateRange = options.from !== undefined && options.from !== undefined;
-
-				if (!hasAmount) {
-					throw new Error("Amount is needed for the limit to be set");
-				}
-
-				if (options.amount <= 0) {
-					throw new Error("amount must be greater than 0");
-				}
-
-				if (!hasDays && !hasDateRange) {
-					throw new Error("Usage requires either 'days' or both 'from' and 'to'");
-				}
-
-				if (hasDays && hasDateRange) {
-					throw new Error("Usage cannot use 'days' together with 'from' and 'to'");
-				}
-
-				if (hasDays) {
-					if (!Number.isInteger(options.days) || options.days <= 0) {
-						throw new Error("'days' must be a positive integer");
-					}
-
+				if (options.days !== undefined) {
 					const { sanitizedStartDate, sanitizedEndDate } = calculateDatesFromNoOfDays(options.days, 1);
 					return await setLimit(sanitizedStartDate, sanitizedEndDate, options.amount);
+				} else {
+					return await setLimit(options.from, options.to, options.amount);
 				}
-
-				return await setLimit(options.from, options.to, options.amount);
 			}
 
-			else if (subCommand === "get") {
-				return await getLimit();
-			}
-
-			else {
-				throw new Error(`ERROR: unknown sub command - '${subCommand}`);
-			}
+			return await getLimit();
 
 		case "session":
 			return formatSessionUsage();
@@ -163,7 +94,6 @@ export async function handleRequest(request) {
 			subCommand = request.subCommand;
 			options = request.options;
 			result = {};
-
 			if (subCommand) {
 				if (subCommand === "enable") {
 					STATE.notification.enabled = true;
@@ -172,53 +102,19 @@ export async function handleRequest(request) {
 				else if (subCommand === "disable") {
 					STATE.notification.enabled = false;
 					result.message = "notification disabled";
-				} else {
-					throw new Error("Error: unknown subcommand");
 				}
 			}
 
-			if (options) {
-				const hasThreshold = options.threshold !== undefined;
-
-				if (hasThreshold && Number(options.threshold) > 0) {
-					STATE.notification.threshold = options.threshold * 1000000000;
-					result.threshold = `threshold set for '${options.threshold}' GB`;
-				} else {
-					throw new Error("Error: unknown command");
-				}
+			if (options.threshold !== undefined) {
+				STATE.notification.threshold = options.threshold * ONE_GB;
+				result.threshold = `threshold set for '${options.threshold}' GB`;
 			}
 
 			return result;
 
 		case "help":
-			return `
-Usage:
-	usage --days <number>			Show usage for the last N days
-	usage --from <date> --to <date>	Show usage between two dates
+			return displayHelp();
 
-Interface:
-	interface --days <number>		Show interface usage for the last N days
-	interface --from <date> --to <date>	Show interface usage between two dates
-
-Monitoring:
-	speed					Show current network speed
-	session					Show current session usage
-	status					Show current Net Limiter status
-
-Limit:
-	limit set --amount <GB> --days <number>	Set a usage limit for N days
-	limit set --amount <GB> --from <date> --to <date>
-						Set a usage limit for a date range
-	limit get				Show current usage limit
-
-Notification:
-	notification enable			Enable usage notifications
-	notification disable			Disable usage notifications
-	notification --threshold <GB>		Set notification threshold
-
-General:
-	help					Show this help message
-`;
 		default:
 			throw new Error(`Unknown Command: ${request.command}`);
 	}
