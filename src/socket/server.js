@@ -1,14 +1,22 @@
 import net from "net";
 import fs from "fs";
-import { encodeMessage, decodeMessage } from "./protocol.js";
+import { encodeMessage, decodeMessage, validateRequest, createSuccessResponse, createErrorResponse } from "./protocol.js";
 import { handleRequest } from "../commands/handler.js";
 
 const SOCKET_PATH = "test.sock";
 
+try {
+	fs.unlinkSync(SOCKET_PATH);
+} catch (err) {
+	console.log("err in index.js -", err.message);
+}
+
 export const server = net.createServer((socket) => {
 	console.log("client connected");
 
+	let watchInterval = null;
 	let buffer = "";
+
 	socket.on("data", async (data) => {
 		buffer += data.toString();
 
@@ -26,40 +34,52 @@ export const server = net.createServer((socket) => {
 			try {
 				request = decodeMessage(message);
 			} catch (err) {
-				const response = {
-					id: null,
-					success: false,
-					error: "invalid json"
-				}
+				const errorResponse = createErrorResponse(err);
 
-				socket.write(encodeMessage(response));
+				socket.write(encodeMessage(errorResponse));
 				continue;
 			}
 
 			try {
-				const data = await handleRequest(request);
-				const response = {
-					id: request.id,
-					success: true,
-					data
-				}
+				const validatedRequest = validateRequest(request);
+				if (validatedRequest.valid) {
+					if (request.command === "speed" && request.options?.watch) {
+						if (watchInterval === null) {
+							
+							watchInterval = setInterval(async () => {
+								const data = await handleRequest(request);
+								const successResponse = createSuccessResponse(data);
 
-				socket.write(encodeMessage(response));
+								socket.write(encodeMessage(successResponse));
+							}, 1000);
+						};
+					}
+					else {
+						const data = await handleRequest(request);
+						const successResponse = createSuccessResponse(data);
+
+						socket.write(encodeMessage(successResponse));
+						socket.end();
+					}
+				}
 			} catch (err) {
-				console.log("err -", err);
-				const response = {
-					id: request.id,
-					success: false,
-					error: err.message
-				}
+				const errorResponse = createErrorResponse(err);
 
-				socket.write(encodeMessage(response));
+				socket.write(encodeMessage(errorResponse));
 			}
 		}
 	});
 
+	socket.on("close", () => {
+		if (watchInterval) {
+			clearInterval(watchInterval);
+			watchInterval = null;
+		}
+		console.log("close event: Client disconnected");
+	});
+
 	socket.on("end", () => {
-		console.log("client disconnected");
+		console.log("end event: client disconnected");
 	});
 
 	socket.on("error", (err) => {
