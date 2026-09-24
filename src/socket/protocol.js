@@ -130,3 +130,28 @@ export function createErrorResponse(error) {
 		}
 	}
 }
+
+export function parseMessages(buffer = "", data) {
+	buffer += data.toString();
+
+	const messages = [];
+
+	let newlineIndex;
+
+	while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+		const message = buffer.slice(0, newlineIndex);
+
+		buffer = buffer.slice(newlineIndex + 1);
+
+		if (message.length === 0) {
+			continue;
+		}
+
+		messages.push(message);
+	}
+
+	return {
+		buffer,
+		messages
+	}
+}

@@ -1,6 +1,9 @@
 import net from "net";
 import fs from "fs";
-import { encodeMessage, decodeMessage, validateRequest, createSuccessResponse, createErrorResponse } from "./protocol.js";
+import {
+	encodeMessage, decodeMessage, validateRequest,
+	createSuccessResponse, createErrorResponse, parseMessages
+} from "./protocol.js";
 import { handleRequest } from "../commands/handler.js";
 
 const SOCKET_PATH = "test.sock";
@@ -18,17 +21,10 @@ export const server = net.createServer((socket) => {
 	let buffer = "";
 
 	socket.on("data", async (data) => {
-		buffer += data.toString();
+		const result = parseMessages(buffer, data);
+		buffer = result.buffer;
 
-		let newLineIndex;
-
-		while ((newLineIndex = buffer.indexOf("\n")) !== -1) {
-			const message = buffer.slice(0, newLineIndex);
-
-			buffer = buffer.slice(newLineIndex + 1);
-
-			if (message.length === 0) continue;
-
+		for (const message of result.messages) {
 			let request;
 
 			try {
@@ -45,7 +41,7 @@ export const server = net.createServer((socket) => {
 				if (validatedRequest.valid) {
 					if (request.command === "speed" && request.options?.watch) {
 						if (watchInterval === null) {
-							
+
 							watchInterval = setInterval(async () => {
 								const data = await handleRequest(request);
 								const successResponse = createSuccessResponse(data);
