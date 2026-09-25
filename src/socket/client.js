@@ -1,34 +1,20 @@
 import net from "net";
-import readline from "readline";
 import { encodeMessage, decodeMessage } from "./protocol.js";
 import { parser } from "./cliParser.js";
 
 const SOCKET_PATH = "test.sock";
 
 const client = net.createConnection(SOCKET_PATH, () => {
-	console.log("connecting to the net limiter server");
 });
 
-const rl = readline.createInterface({
-	input: process.stdin,
-	output: process.stdout,
-	prompt: "netlimiter > "
-});
+let input = process.argv.slice(2).join(" ");
 
-client.on("connect", () => {
-	console.log("Connected to net limiter server");
-	rl.prompt();
-});
+if (input.trim() === "") {
+	input = "--help";
+}
 
-rl.on("line", (input) => {
-	if (input.trim === "") {
-		rl.prompt();
-		return;
-	}
-
-	const request = parser(input);
-	client.write(encodeMessage(request));
-});
+const request = parser(input);
+client.write(encodeMessage(request));
 
 let buffer = "";
 client.on("data", (data) => {
@@ -43,22 +29,20 @@ client.on("data", (data) => {
 
 		const response = decodeMessage(message);
 		console.log("netlimiter > response -", response);
-		rl.prompt();
 	}
 })
 
 client.on("close", () => {
-	console.log("close event: Disconnected from server");
-	rl.close();
+//	console.log("close event: Disconnected from server");
 	process.exit(0);
 });
 
 client.on("end", () => {
-	console.log("end event: connection closed");
+//	console.log("end event: connection closed");
 });
 
 client.on("error", (err) => {
-	console.error("socket error -", err.message);
+console.error("socket error -", err.message);
 });
 
 process.on("SIGINT", () => {
