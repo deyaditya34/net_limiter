@@ -1,6 +1,7 @@
 import net from "net";
-import { encodeMessage, decodeMessage, parseMessages } from "./protocol.js";
+import { encodeMessage, decodeMessage, parseMessages, createErrorResponse } from "./protocol.js";
 import { cliParser } from "../cli/cliParser.js";
+import { validateCLIRequest } from "../cli/validateCliRequest.js";
 
 const SOCKET_PATH = "test.sock";
 
@@ -13,8 +14,22 @@ if (input.trim() === "") {
 	input = "help";
 }
 
-const request = cliParser(input);
-client.write(encodeMessage(request));
+let request;
+try {
+	request = cliParser(input);
+} catch (err) {
+	const errorResponse = createErrorResponse(err);
+	console.log(errorResponse);
+}
+
+try {
+	validateCLIRequest(request);
+	client.write(encodeMessage(request));
+} catch (err) {
+	const errorResponse = createErrorResponse(err);
+	console.log(errorResponse);
+	process.exit(1);
+};
 
 let buffer = "";
 client.on("data", (data) => {

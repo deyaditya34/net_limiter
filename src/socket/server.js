@@ -1,8 +1,8 @@
 import net from "net";
 import fs from "fs";
 import {
-	encodeMessage, decodeMessage, validateRequest,
-	createSuccessResponse, createErrorResponse, parseMessages
+	encodeMessage, decodeMessage, createSuccessResponse,
+	createErrorResponse, parseMessages, validateServerRequest
 } from "./protocol.js";
 import { handleRequest } from "../commands/handler.js";
 
@@ -37,26 +37,25 @@ export const server = net.createServer((socket) => {
 			}
 
 			try {
-				const validatedRequest = validateRequest(request);
-				if (validatedRequest.valid) {
-					if (request.command === "speed" && request.options?.watch) {
-						if (watchInterval === null) {
+				validateServerRequest(request);
 
-							watchInterval = setInterval(async () => {
-								const data = await handleRequest(request);
-								const successResponse = createSuccessResponse(data);
+				if (request.command === "speed" && request.options?.watch) {
+					if (watchInterval === null) {
 
-								socket.write(encodeMessage(successResponse));
-							}, 1000);
-						};
-					}
-					else {
-						const data = await handleRequest(request);
-						const successResponse = createSuccessResponse(data);
+						watchInterval = setInterval(async () => {
+							const data = await handleRequest(request);
+							const successResponse = createSuccessResponse(data);
 
-						socket.write(encodeMessage(successResponse));
-						socket.end();
-					}
+							socket.write(encodeMessage(successResponse));
+						}, 1000);
+					};
+				}
+				else {
+					const data = await handleRequest(request);
+					const successResponse = createSuccessResponse(data);
+
+					socket.write(encodeMessage(successResponse));
+					socket.end();
 				}
 			} catch (err) {
 				const errorResponse = createErrorResponse(err);
