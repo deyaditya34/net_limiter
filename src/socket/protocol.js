@@ -123,7 +123,7 @@ export function createSuccessResponse(data) {
 
 export function createErrorResponse(error) {
 	return {
-		success: true,
+		success: false,
 		error: {
 			code: error.code,
 			message: error.message
