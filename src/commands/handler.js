@@ -19,19 +19,11 @@ export async function handleRequest(request) {
 
 			if (options.days !== undefined) {
 				usage = await getUsageSummary(options.days);
-				result = formatUsage(usage);
-				return {
-					totalDownload: result.totalDownload,
-					totalUpload: result.totalUpload
-				}
 			} else {
 				usage = await getUsageBetweenDates(sanitizeDate(options.from), sanitizeDate(options.to));
-				result = formatUsage(usage);
-				return {
-					totalDownload: result.totalDownload,
-					totalUpload: result.totalUpload
-				}
 			}
+			result = formatUsage(usage);
+			return result;
 
 		case "interface":
 			options = request.options;
@@ -78,9 +70,9 @@ export async function handleRequest(request) {
 			return {
 				today: {
 					date: STATE.trackingDate,
-					download: STATE.daily.download,
-					upload: STATE.daily.upload,
-					total: STATE.daily.download + STATE.daily.upload
+					download: `${(STATE.daily.download / ONE_GB).toFixed(2)} GB`,
+					upload: `${(STATE.daily.upload / ONE_GB).toFixed(2)} GB`,
+					total: `${((STATE.daily.download + STATE.daily.upload) / ONE_GB).toFixed(2)} GB`
 				},
 				speed: STATE.currentSpeed,
 				session: formatSessionUsage(),
@@ -97,18 +89,18 @@ export async function handleRequest(request) {
 			if (subCommand) {
 				if (subCommand === "enable") {
 					STATE.notification.enabled = true;
-					result.message = "notification enabled";
 				}
 				else if (subCommand === "disable") {
 					STATE.notification.enabled = false;
-					result.message = "notification disabled";
 				}
 			}
 
 			if (options.threshold !== undefined) {
 				STATE.notification.threshold = options.threshold * ONE_GB;
-				result.threshold = `threshold set for '${options.threshold}' GB`;
 			}
+
+			result.enabled = STATE.notification.enabled;
+			result.threshold = `'${STATE.notification.threshold / ONE_GB}GB'`;
 
 			return result;
 

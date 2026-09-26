@@ -12,6 +12,8 @@ export async function getLimit() {
 	const percentage = usedGb / limitInGB * 100;
 
 	return {
+		startDate: STATE.limitStartDate,
+		endDate: STATE.limitEndDate,
 		limit: `${limitInGB.toFixed(2)} GB`,
 		usedGb: `${usedGb.toFixed(2)} GB`,
 		remaining: `${remaining.toFixed(2)} GB`,
