@@ -70,15 +70,15 @@ function formatInterface(data) {
 	table.push(
 		[
 			"Wi-Fi",
-			result.wifiDownload,
-			result.wifiUpload,
-			result.wifiUsage,
+			data.wifiDownload,
+			data.wifiUpload,
+			data.wifiUsage,
 		],
 		[
 			"Ethernet",
-			result.ethernetDownload,
-			result.ethernetUpload,
-			result.ethernetUsage,
+			data.ethernetDownload,
+			data.ethernetUpload,
+			data.ethernetUsage,
 		],
 	);
 
