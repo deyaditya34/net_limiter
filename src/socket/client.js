@@ -2,6 +2,7 @@ import net from "net";
 import { encodeMessage, decodeMessage, parseMessages, createErrorResponse } from "./protocol.js";
 import { cliParser } from "../cli/cliParser.js";
 import { validateCLIRequest } from "../cli/validateCliRequest.js";
+import { formatResponse } from "../cli/responseFormatter.js";
 
 const SOCKET_PATH = "test.sock";
 
@@ -39,9 +40,8 @@ client.on("data", (data) => {
 	for (const message of result.messages) {
 
 		const response = decodeMessage(message);
-		console.log("netlimiter > response -", response);
-
-		client.end();
+		const formattedResponse = formatResponse(request, response);
+		console.log(formattedResponse);
 	}
 })
 
