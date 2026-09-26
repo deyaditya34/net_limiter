@@ -1,11 +1,12 @@
-import { calculateSpeed } from "../network/speed.js";
-import { getUsageSummary, getUsageBetweenDates, formatUsage } from "../storage/usageHistory.js";
-import { getLimit, setLimit } from "../network/limit.js";
-import { formatSessionUsage } from "../network/session.js";
-import { displayHelp } from "../commands/help.js";
-import { calculateDatesFromNoOfDays, sanitizeDate } from "../utils/date.js";
 import { STATE } from "../state/state.js";
-import { ONE_GB } from "../config/constants.js";
+import { helpHandler } from "../commands/help.js";
+import { usageHandler } from "./usage.js";
+import { interfaceHandler } from "./interface.js";
+import { speedHandler } from "./speed.js";
+import { limitHandler } from "./limit.js";
+import { sessionHandler } from "./session.js";
+import { statusHandler } from "./status.js";
+import { notificationHandler } from "./notification.js";
 
 export async function handleRequest(request) {
 	let options;
@@ -15,97 +16,37 @@ export async function handleRequest(request) {
 
 	switch (request.command) {
 		case "usage":
-			options = request.options;
-
-			if (options.days !== undefined) {
-				usage = await getUsageSummary(options.days);
-			} else {
-				usage = await getUsageBetweenDates(sanitizeDate(options.from), sanitizeDate(options.to));
-			}
-			result = formatUsage(usage);
+			result = await usageHandler(request.options);
+			console.log("result -", result);
 			return result;
 
 		case "interface":
-			options = request.options;
-
-			if (options.days !== undefined) {
-				usage = await getUsageSummary(options.days);
-			}
-			else {
-				usage = await getUsageBetweenDates(options.from, options.to);
-			}
-
-			result = formatUsage(usage);
-			return {
-				wifiUsage: result.wifiUsage,
-				ethernetUsage: result.ethernetUsage,
-				wifiDownload: result.wifiDownload,
-				wifiUpload: result.wifiUpload,
-				ethernetDownload: result.ethernetDownload,
-				ethernetUpload: result.ethernetUpload
-			}
+			result = await interfaceHandler(request.options);
+			return result;
 
 		case "speed":
-			return STATE.currentSpeed;
+			result = speedHandler(STATE);
+			return result;
 
 		case "limit":
-			subCommand = request.subCommand;
-			if (subCommand === "set") {
-				options = request.options;
-
-				if (options.days !== undefined) {
-					const { sanitizedStartDate, sanitizedEndDate } = calculateDatesFromNoOfDays(options.days, 1);
-					return await setLimit(sanitizedStartDate, sanitizedEndDate, options.amount);
-				} else {
-					return await setLimit(options.from, options.to, options.amount);
-				}
-			}
-
-			return await getLimit();
+			result = await limitHandler(request.subCommand, request.options);
+			return result;
 
 		case "session":
-			return formatSessionUsage();
+			result = sessionHandler(STATE);
+			return result;
 
 		case "status":
-			return {
-				today: {
-					date: STATE.trackingDate,
-					download: `${(STATE.daily.download / ONE_GB).toFixed(2)} GB`,
-					upload: `${(STATE.daily.upload / ONE_GB).toFixed(2)} GB`,
-					total: `${((STATE.daily.download + STATE.daily.upload) / ONE_GB).toFixed(2)} GB`
-				},
-				speed: STATE.currentSpeed,
-				session: formatSessionUsage(),
-				notification: {
-					threshold: `${(STATE.notification.threshold / ONE_GB).toFixed(2)} GB`,
-					enabled: STATE.notification.enabled
-				}
-			}
+			result = statusHandler(STATE);
+			return result;
 
 		case "notification":
-			subCommand = request.subCommand;
-			options = request.options;
-			result = {};
-			if (subCommand) {
-				if (subCommand === "enable") {
-					STATE.notification.enabled = true;
-				}
-				else if (subCommand === "disable") {
-					STATE.notification.enabled = false;
-				}
-			}
-
-			if (options.threshold !== undefined) {
-				STATE.notification.threshold = options.threshold * ONE_GB;
-			}
-
-			result.enabled = STATE.notification.enabled;
-			result.threshold = `'${STATE.notification.threshold / ONE_GB}GB'`;
-
+			result = notificationHandler(request.subCommand, request.options, STATE);
 			return result;
 
 		case "help":
-			return displayHelp();
+			result = helpHandler();
+			return result;
 
 		default:
 			throw new Error(`Unknown Command: ${request.command}`);

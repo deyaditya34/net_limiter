@@ -17,10 +17,3 @@ export function updateSessionUsage(interfaceDelta) {
 	}
 }
 
-export function formatSessionUsage() {
-	return {
-		startDate: STATE.session.startDate,
-		download: `${Number(STATE.session.download / 100000000).toFixed(2)} GB`,
-		upload: `${Number(STATE.session.upload / 100000000).toFixed(2)} GB`
-	}
-}
