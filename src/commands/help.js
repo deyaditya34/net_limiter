@@ -1,4 +1,4 @@
-export function displayHelp() {
+export function helpHandler() {
 	return {
 		usage: [
 			["usage --days <number>", "Show usage for the last N days"],
